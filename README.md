@@ -39,7 +39,7 @@ Alternatively, run the unit tests in this project:
 # iOS 18 - FAILS
 xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
   -scheme iOS18AccessibilityBugRepro \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
+  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=18.5' \
   -only-testing:iOS18AccessibilityBugReproTests/AccessibilityPathMutationTests
 
 # iOS 17 - PASSES  
