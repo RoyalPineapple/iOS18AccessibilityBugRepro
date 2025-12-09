@@ -13,28 +13,47 @@
 - Does NOT occur on iOS 17.5 and earlier
 - Xcode 16.4 / Xcode 26.1
 
-## Bug is Path-Type Specific
+## Root Cause
 
-The bug only affects certain path types:
+The bug affects paths that contain **explicit path elements** internally. Paths using optimized internal representations (from convenience initializers) are unaffected.
 
-| Path Type | iOS 18 Behavior |
-|-----------|-----------------|
-| `UIBezierPath(rect:)` | ✅ Works correctly |
-| `UIBezierPath(ovalIn:)` | ✅ Works correctly |
-| `UIBezierPath(arcCenter:...)` | ✅ Works correctly |
-| `UIBezierPath(roundedRect:cornerRadius:)` | ❌ **BUG** - coordinates accumulate |
-| Custom path with `addLine` | ❌ **BUG** - coordinates accumulate |
-| Custom path with `addQuadCurve` | ❌ **BUG** - coordinates accumulate |
-| Custom path with `addCurve` | ❌ **BUG** - coordinates accumulate |
-| Path with only `move(to:)` | ❌ **BUG** - coordinates accumulate |
+### Works Correctly (No Bug)
+| Path Type | Notes |
+|-----------|-------|
+| `UIBezierPath(rect:)` | Convenience initializer |
+| `UIBezierPath(ovalIn:)` | Convenience initializer |
+| `UIBezierPath(arcCenter:...)` | Convenience initializer |
+| `CGPath(rect:)` → `UIBezierPath(cgPath:)` | CGPath rect also works |
+| Empty path | No elements to mutate |
+| View at origin (0,0) | Bug exists but 0+0=0 so not observable |
 
-**Pattern**: Paths built with explicit path elements (`move`, `addLine`, `addQuadCurve`, `addCurve`) are affected, while convenience initializers (`rect`, `ovalIn`, `arcCenter`) are not.
+### Has Bug (Coordinates Accumulate)
+| Path Type | Notes |
+|-----------|-------|
+| `UIBezierPath(roundedRect:cornerRadius:)` | Uses curves internally |
+| `path.move(to:)` | Explicit element |
+| `path.addLine(to:)` | Explicit element |
+| `path.addQuadCurve(to:controlPoint:)` | Explicit element |
+| `path.addCurve(to:controlPoint1:controlPoint2:)` | Explicit element |
+| `path.close()` | Explicit element |
+| `CGMutablePath` with `addLine` | CGPath explicit elements also affected |
+
+### Operations That Break Working Paths
+| Operation | Result |
+|-----------|--------|
+| `rect.addLine(to:)` | ❌ Adding line to rect breaks it |
+| `oval.addLine(to:)` | ❌ Adding line to oval breaks it |
+| `rect.append(linePath)` | ❌ Appending line path breaks it |
+| `linePath.append(rect)` | ❌ Line path stays broken even with rect appended |
+| `rect.reversing()` | ❌ Reversing converts to explicit elements, breaks it |
+| `linePath.copy()` | ❌ Copying preserves the bug |
+| `linePath.apply(transform)` | ❌ Transform doesn't fix it |
 
 ## Steps to Reproduce
 
 1. Create a `UIView` subclass that stores a `UIBezierPath` in local coordinates
-2. Override `accessibilityPath` to convert the stored path using `UIAccessibility.convertToScreenCoordinates`
-3. Use a path type that triggers the bug (e.g., `roundedRect` or custom path with `addLine`)
+2. Override `accessibilityPath` to convert using `UIAccessibility.convertToScreenCoordinates`
+3. Use a path with explicit elements (e.g., `addLine` or `roundedRect`)
 4. Read `accessibilityPath` multiple times
 
 ```swift
@@ -49,53 +68,29 @@ class CustomView: UIView {
         set { super.accessibilityPath = newValue }
     }
 }
+
+// This triggers the bug:
+view.relativePath = UIBezierPath(roundedRect: rect, cornerRadius: 10)
+let _ = view.accessibilityPath  // Read 1: correct
+let _ = view.accessibilityPath  // Read 2: coordinates doubled!
+let _ = view.accessibilityPath  // Read 3: coordinates tripled!
 ```
 
-Run the unit tests:
+## Expected vs Actual Results
 
-```bash
-# iOS 18 - Some tests FAIL
-xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
-  -scheme iOS18AccessibilityBugRepro \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
-  -only-testing:iOS18AccessibilityBugReproTests/AccessibilityPathMutationTests
-
-# iOS 17 - All tests PASS  
-xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
-  -scheme iOS18AccessibilityBugRepro \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5' \
-  -only-testing:iOS18AccessibilityBugReproTests/AccessibilityPathMutationTests
-```
-
-## Expected Results
-
-Per the [documented behavior](https://developer.apple.com/documentation/uikit/uiaccessibility/1615139-converttoscreencoordinates), the method should return a new path object. The input path should not be modified.
-
-Each read of `accessibilityPath` returns the same screen coordinates:
-
+**Expected** (iOS 17 behavior):
 ```
 Read 1: origin=(100.0, 200.0)
 Read 2: origin=(100.0, 200.0)
 Read 3: origin=(100.0, 200.0)
 ```
 
-## Actual Results
-
-On iOS 18+ with affected path types, the input path is mutated in-place. Coordinates accumulate with each call:
-
+**Actual** (iOS 18+ with affected path types):
 ```
 Read 1: origin=(100.0, 200.0)   ← correct
-Read 2: origin=(200.0, 400.0)   ← doubled
-Read 3: origin=(300.0, 600.0)   ← tripled
+Read 2: origin=(200.0, 400.0)   ← doubled!
+Read 3: origin=(300.0, 600.0)   ← tripled!
 ```
-
-## Regression
-
-| iOS Version | Result |
-|-------------|--------|
-| iOS 17.5    | ✅ All tests pass |
-| iOS 18.5    | ❌ Tests for affected path types fail |
-| iOS 26.1    | ❌ Tests for affected path types fail |
 
 ## Workaround
 
@@ -110,4 +105,18 @@ override var accessibilityPath: UIBezierPath? {
     }
     set { super.accessibilityPath = newValue }
 }
+```
+
+## Running the Tests
+
+```bash
+# iOS 18 - Many tests fail
+xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
+  -scheme iOS18AccessibilityBugRepro \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
+
+# iOS 17 - All tests pass
+xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
+  -scheme iOS18AccessibilityBugRepro \
+  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5'
 ```
