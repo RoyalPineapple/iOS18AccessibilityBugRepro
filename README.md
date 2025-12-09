@@ -13,11 +13,29 @@
 - Does NOT occur on iOS 17.5 and earlier
 - Xcode 16.4 / Xcode 26.1
 
+## Bug is Path-Type Specific
+
+The bug only affects certain path types:
+
+| Path Type | iOS 18 Behavior |
+|-----------|-----------------|
+| `UIBezierPath(rect:)` | ✅ Works correctly |
+| `UIBezierPath(ovalIn:)` | ✅ Works correctly |
+| `UIBezierPath(arcCenter:...)` | ✅ Works correctly |
+| `UIBezierPath(roundedRect:cornerRadius:)` | ❌ **BUG** - coordinates accumulate |
+| Custom path with `addLine` | ❌ **BUG** - coordinates accumulate |
+| Custom path with `addQuadCurve` | ❌ **BUG** - coordinates accumulate |
+| Custom path with `addCurve` | ❌ **BUG** - coordinates accumulate |
+| Path with only `move(to:)` | ❌ **BUG** - coordinates accumulate |
+
+**Pattern**: Paths built with explicit path elements (`move`, `addLine`, `addQuadCurve`, `addCurve`) are affected, while convenience initializers (`rect`, `ovalIn`, `arcCenter`) are not.
+
 ## Steps to Reproduce
 
 1. Create a `UIView` subclass that stores a `UIBezierPath` in local coordinates
 2. Override `accessibilityPath` to convert the stored path using `UIAccessibility.convertToScreenCoordinates`
-3. Read `accessibilityPath` multiple times
+3. Use a path type that triggers the bug (e.g., `roundedRect` or custom path with `addLine`)
+4. Read `accessibilityPath` multiple times
 
 ```swift
 class CustomView: UIView {
@@ -33,16 +51,16 @@ class CustomView: UIView {
 }
 ```
 
-Alternatively, run the unit tests in this project:
+Run the unit tests:
 
 ```bash
-# iOS 18 - FAILS
+# iOS 18 - Some tests FAIL
 xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
   -scheme iOS18AccessibilityBugRepro \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=18.5' \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
   -only-testing:iOS18AccessibilityBugReproTests/AccessibilityPathMutationTests
 
-# iOS 17 - PASSES  
+# iOS 17 - All tests PASS  
 xcodebuild test -project iOS18AccessibilityBugRepro.xcodeproj \
   -scheme iOS18AccessibilityBugRepro \
   -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5' \
@@ -59,29 +77,25 @@ Each read of `accessibilityPath` returns the same screen coordinates:
 Read 1: origin=(100.0, 200.0)
 Read 2: origin=(100.0, 200.0)
 Read 3: origin=(100.0, 200.0)
-Read 4: origin=(100.0, 200.0)
-Read 5: origin=(100.0, 200.0)
 ```
 
 ## Actual Results
 
-On iOS 18+, the input path is mutated in-place. Coordinates accumulate with each call:
+On iOS 18+ with affected path types, the input path is mutated in-place. Coordinates accumulate with each call:
 
 ```
 Read 1: origin=(100.0, 200.0)   ← correct
 Read 2: origin=(200.0, 400.0)   ← doubled
 Read 3: origin=(300.0, 600.0)   ← tripled
-Read 4: origin=(400.0, 800.0)   ← quadrupled
-Read 5: origin=(500.0, 1000.0)  ← 5x
 ```
 
 ## Regression
 
 | iOS Version | Result |
 |-------------|--------|
-| iOS 17.5    | ✅ PASS - input path not mutated |
-| iOS 18.5    | ❌ FAIL - input path mutated |
-| iOS 26.1    | ❌ FAIL - input path mutated |
+| iOS 17.5    | ✅ All tests pass |
+| iOS 18.5    | ❌ Tests for affected path types fail |
+| iOS 26.1    | ❌ Tests for affected path types fail |
 
 ## Workaround
 
