@@ -149,6 +149,7 @@ The test suite in `iOSAccessibilityPathBugTests/PathMutationDemonstration.swift`
 
 ```bash
 xcodebuild test -project iOSAccessibilityPathBug.xcodeproj \
-  -scheme BugDemonstrationTests \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
+  -scheme AccessibilityBugTestHost \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
+  -only-testing:BugDemonstrationTests
 ```
