@@ -436,6 +436,164 @@ final class PathMutationDemonstration: XCTestCase {
         """)
     }
 
+    // MARK: - Counter Reset Boundaries
+
+    func test_pathModificationCounterReset() {
+        // What operations on a path trigger counter reset?
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        view.relativePath = path
+        testView.addSubview(view)
+        window.layoutIfNeeded()
+
+        // Baseline: establish accumulation
+        let r1 = view.accessibilityPath!.bounds.origin.x
+        let r2 = view.accessibilityPath!.bounds.origin.x
+        let r3 = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === BASELINE ACCUMULATION ===
+        1st: \(r1) (Expected: 100)
+        2nd: \(r2) (Expected: 200)
+        3rd: \(r3) (Expected: 300)
+        """)
+
+        // Test 1: Apply transform to same path object
+        path.apply(CGAffineTransform(translationX: 10, y: 10))
+        let afterTransform = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER TRANSFORM (same path object) ===
+        Returned X: \(afterTransform)
+        Expected if counter reset: 100
+        Expected if counter continued: 400
+        Actual behavior: \(afterTransform == 100.0 ? "RESET" : afterTransform == 400.0 ? "CONTINUED" : "UNKNOWN")
+        """)
+
+        // Test 2: Add elements to same path object
+        path.addLine(to: CGPoint(x: 100, y: 100))
+        let afterAddLine = view.accessibilityPath!.bounds.origin.x
+        let expectedIfReset = 100.0
+        let expectedIfContinued = afterTransform == 100.0 ? 200.0 : 500.0
+        XCTFail("""
+        === AFTER ADD LINE (same path object) ===
+        Returned X: \(afterAddLine)
+        Expected if counter reset: \(expectedIfReset)
+        Expected if counter continued: \(expectedIfContinued)
+        Actual behavior: \(afterAddLine == expectedIfReset ? "RESET" : afterAddLine == expectedIfContinued ? "CONTINUED" : "UNKNOWN")
+        """)
+
+        // Test 3: Close path (mutation without changing identity)
+        path.close()
+        let afterClose = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER CLOSE (same path object) ===
+        Returned X: \(afterClose)
+        Path object identity unchanged: \(path === view.relativePath)
+        Does close() reset counter?
+        """)
+    }
+
+    func test_pathReplacementTypes() {
+        // Does the TYPE of replacement matter for counter reset?
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        testView.addSubview(view)
+        window.layoutIfNeeded()
+
+        // Start with roundedRect, establish accumulation
+        view.relativePath = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        let r1 = view.accessibilityPath!.bounds.origin.x
+        let r2 = view.accessibilityPath!.bounds.origin.x
+        let r3 = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === INITIAL ACCUMULATION (roundedRect) ===
+        1st: \(r1), 2nd: \(r2), 3rd: \(r3)
+        """)
+
+        // Replace with copy of same path
+        view.relativePath = view.relativePath?.copy() as? UIBezierPath
+        let afterCopy = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER COPY REPLACEMENT ===
+        Returned X: \(afterCopy) (Expected: 100 if reset, 400 if continued)
+        Counter reset? \(afterCopy == 100.0)
+        """)
+
+        // Continue to verify copy actually reset
+        let afterCopy2 = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === 2ND READ AFTER COPY ===
+        Returned X: \(afterCopy2)
+        If copy reset counter: should be 200
+        If copy didn't reset: would be 500
+        """)
+
+        // Replace with new path (same type, same dimensions)
+        view.relativePath = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        let afterNewSame = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER NEW PATH (same type/dimensions) ===
+        Returned X: \(afterNewSame) (Expected: 100 if reset)
+        """)
+
+        // Replace with different path type
+        view.relativePath = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 60, height: 40))
+        let afterRect = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER SWITCHING TO RECT (unaffected type) ===
+        Returned X: \(afterRect) (Expected: 100)
+        Does switching to unaffected type reset counter?
+        """)
+
+        // Switch back to affected type
+        view.relativePath = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        let afterSwitchBack = view.accessibilityPath!.bounds.origin.x
+        let afterSwitchBack2 = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER SWITCHING BACK TO ROUNDEDRECT ===
+        1st read: \(afterSwitchBack)
+        2nd read: \(afterSwitchBack2)
+        Did rect maintain/increment counter? If yes: \(afterSwitchBack) > 100
+        """)
+    }
+
+    func test_pathMutationWithoutReplacement() {
+        // Does mutating stored path without reassigning reset counter?
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        view.relativePath = path
+        testView.addSubview(view)
+        window.layoutIfNeeded()
+
+        // Establish baseline
+        let r1 = view.accessibilityPath!.bounds.origin.x
+        let r2 = view.accessibilityPath!.bounds.origin.x
+        let r3 = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === BASELINE ===
+        Reads: \(r1), \(r2), \(r3)
+        """)
+
+        // Mutate the stored path object directly (no reassignment)
+        path.apply(CGAffineTransform(scaleX: 2.0, y: 2.0))
+        let pathIdentityCheck = (path === view.relativePath)
+        let afterMutation = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER MUTATING STORED PATH (no reassignment) ===
+        Path identity unchanged: \(pathIdentityCheck)
+        Returned X: \(afterMutation)
+        Counter reset? \(afterMutation == 100.0)
+        Counter continued? \(afterMutation == 400.0)
+        """)
+
+        // Try triggering property observer by reassigning same object
+        view.relativePath = view.relativePath
+        let afterReassignSame = view.accessibilityPath!.bounds.origin.x
+        XCTFail("""
+        === AFTER REASSIGNING SAME OBJECT ===
+        Returned X: \(afterReassignSame)
+        Does reassigning same reference reset counter?
+        """)
+    }
+
     // MARK: - Other Trigger Conditions
 
     func test_detachedView_noCoordinateDrift() {
