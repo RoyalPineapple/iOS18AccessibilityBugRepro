@@ -185,45 +185,55 @@ final class PathMutationDemonstration: XCTestCase {
         let initialCGPath = path.cgPath
         let expectedX = view.convert(view.bounds, to: nil).origin.x + path.bounds.origin.x
 
-        print("\n=== INITIAL STATE ===")
-        print("Input path bounds: \(path.bounds)")
-        print("Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())")
-        print("Expected X: \(expectedX)")
+        XCTFail("""
+        === INITIAL STATE ===
+        Input path bounds: \(path.bounds)
+        Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())
+        Expected X: \(expectedX)
+        """)
 
         let firstPath = view.accessibilityPath!
         let first = firstPath.bounds.origin.x
-        print("\n=== AFTER 1ST READ ===")
-        print("Returned path bounds: \(firstPath.bounds)")
-        print("Returned CGPath pointer: \(Unmanaged.passUnretained(firstPath.cgPath).toOpaque())")
-        print("Input path bounds: \(path.bounds)")
-        print("Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())")
-        print("CGPath same? \(initialCGPath == path.cgPath)")
-        print("Returned X: \(first), Expected: \(expectedX)")
+        XCTFail("""
+        === AFTER 1ST READ ===
+        Returned path bounds: \(firstPath.bounds)
+        Returned CGPath pointer: \(Unmanaged.passUnretained(firstPath.cgPath).toOpaque())
+        Input path bounds: \(path.bounds)
+        Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())
+        CGPath same? \(initialCGPath == path.cgPath)
+        Returned X: \(first), Expected: \(expectedX)
+        """)
 
         let secondPath = view.accessibilityPath!
         let second = secondPath.bounds.origin.x
-        print("\n=== AFTER 2ND READ ===")
-        print("Returned path bounds: \(secondPath.bounds)")
-        print("Returned CGPath pointer: \(Unmanaged.passUnretained(secondPath.cgPath).toOpaque())")
-        print("Input path bounds: \(path.bounds)")
-        print("Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())")
-        print("CGPath same? \(initialCGPath == path.cgPath)")
-        print("Returned X: \(second), Expected: \(expectedX)")
+        XCTFail("""
+        === AFTER 2ND READ ===
+        Returned path bounds: \(secondPath.bounds)
+        Returned CGPath pointer: \(Unmanaged.passUnretained(secondPath.cgPath).toOpaque())
+        Input path bounds: \(path.bounds)
+        Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())
+        CGPath same? \(initialCGPath == path.cgPath)
+        Returned X: \(second), Expected: \(expectedX)
+        """)
 
         let thirdPath = view.accessibilityPath!
         let third = thirdPath.bounds.origin.x
-        print("\n=== AFTER 3RD READ ===")
-        print("Returned path bounds: \(thirdPath.bounds)")
-        print("Returned CGPath pointer: \(Unmanaged.passUnretained(thirdPath.cgPath).toOpaque())")
-        print("Input path bounds: \(path.bounds)")
-        print("Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())")
-        print("CGPath same? \(initialCGPath == path.cgPath)")
-        print("Returned X: \(third), Expected: \(expectedX)")
+        XCTFail("""
+        === AFTER 3RD READ ===
+        Returned path bounds: \(thirdPath.bounds)
+        Returned CGPath pointer: \(Unmanaged.passUnretained(thirdPath.cgPath).toOpaque())
+        Input path bounds: \(path.bounds)
+        Input CGPath pointer: \(Unmanaged.passUnretained(path.cgPath).toOpaque())
+        CGPath same? \(initialCGPath == path.cgPath)
+        Returned X: \(third), Expected: \(expectedX)
+        """)
 
-        print("\n=== SUMMARY ===")
-        print("Input UIBezierPath unchanged: \(path === view.relativePath)")
-        print("Input bounds unchanged: \(initialBounds == path.bounds)")
-        print("Input CGPath pointer unchanged: \(initialCGPath == path.cgPath)")
+        XCTFail("""
+        === SUMMARY ===
+        Input UIBezierPath unchanged: \(path === view.relativePath)
+        Input bounds unchanged: \(initialBounds == path.bounds)
+        Input CGPath pointer unchanged: \(initialCGPath == path.cgPath)
+        """)
     }
 
     func test_returnedPathIdentity() {
@@ -238,13 +248,15 @@ final class PathMutationDemonstration: XCTestCase {
         let second = view.accessibilityPath!
         let third = view.accessibilityPath!
 
-        print("\n=== RETURNED PATH IDENTITY ===")
-        print("1st and 2nd same object? \(first === second)")
-        print("2nd and 3rd same object? \(second === third)")
-        print("1st and input same object? \(first === path)")
-        print("1st bounds: \(first.bounds)")
-        print("2nd bounds: \(second.bounds)")
-        print("3rd bounds: \(third.bounds)")
+        XCTFail("""
+        === RETURNED PATH IDENTITY ===
+        1st and 2nd same object? \(first === second)
+        2nd and 3rd same object? \(second === third)
+        1st and input same object? \(first === path)
+        1st bounds: \(first.bounds)
+        2nd bounds: \(second.bounds)
+        3rd bounds: \(third.bounds)
+        """)
     }
 
     func test_heldPathMutation() {
@@ -258,16 +270,22 @@ final class PathMutationDemonstration: XCTestCase {
         let heldPath = view.accessibilityPath!
         let heldBounds = heldPath.bounds
 
-        print("\n=== HELD PATH MUTATION ===")
-        print("Held path initial bounds: \(heldBounds)")
+        XCTFail("""
+        === HELD PATH MUTATION ===
+        Held path initial bounds: \(heldBounds)
+        """)
 
         _ = view.accessibilityPath  // trigger another read
-        print("After 2nd read, held path bounds: \(heldPath.bounds)")
-        print("Held path mutated? \(heldPath.bounds != heldBounds)")
+        XCTFail("""
+        After 2nd read, held path bounds: \(heldPath.bounds)
+        Held path mutated? \(heldPath.bounds != heldBounds)
+        """)
 
         _ = view.accessibilityPath  // trigger another read
-        print("After 3rd read, held path bounds: \(heldPath.bounds)")
-        print("Held path mutated? \(heldPath.bounds != heldBounds)")
+        XCTFail("""
+        After 3rd read, held path bounds: \(heldPath.bounds)
+        Held path mutated? \(heldPath.bounds != heldBounds)
+        """)
     }
 
     func test_directConversionCall() {
@@ -279,26 +297,34 @@ final class PathMutationDemonstration: XCTestCase {
         let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
         let initialBounds = path.bounds
 
-        print("\n=== DIRECT CONVERSION ===")
-        print("Initial path bounds: \(initialBounds)")
+        XCTFail("""
+        === DIRECT CONVERSION ===
+        Initial path bounds: \(initialBounds)
+        """)
 
         let converted1 = UIAccessibility.convertToScreenCoordinates(path, in: view)
-        print("After 1st conversion:")
-        print("  Input path bounds: \(path.bounds)")
-        print("  Returned path bounds: \(converted1.bounds)")
-        print("  Same object? \(path === converted1)")
+        XCTFail("""
+        After 1st conversion:
+          Input path bounds: \(path.bounds)
+          Returned path bounds: \(converted1.bounds)
+          Same object? \(path === converted1)
+        """)
 
         let converted2 = UIAccessibility.convertToScreenCoordinates(path, in: view)
-        print("After 2nd conversion:")
-        print("  Input path bounds: \(path.bounds)")
-        print("  Returned path bounds: \(converted2.bounds)")
-        print("  Same object? \(path === converted2)")
+        XCTFail("""
+        After 2nd conversion:
+          Input path bounds: \(path.bounds)
+          Returned path bounds: \(converted2.bounds)
+          Same object? \(path === converted2)
+        """)
 
         let converted3 = UIAccessibility.convertToScreenCoordinates(path, in: view)
-        print("After 3rd conversion:")
-        print("  Input path bounds: \(path.bounds)")
-        print("  Returned path bounds: \(converted3.bounds)")
-        print("  Same object? \(path === converted3)")
+        XCTFail("""
+        After 3rd conversion:
+          Input path bounds: \(path.bounds)
+          Returned path bounds: \(converted3.bounds)
+          Same object? \(path === converted3)
+        """)
     }
 
     // MARK: - Other Trigger Conditions
