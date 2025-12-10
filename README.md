@@ -123,15 +123,3 @@ xcodebuild test -project iOSAccessibilityPathBug.xcodeproj \
   -scheme BugDemonstrationTests \
   -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
 ```
-
-**Note:** The actual bug behavior with coordinate drift is best demonstrated by running the app itself and enabling VoiceOver. Unit tests document the bug patterns but don't reproduce the full mutation behavior since `UIAccessibility.convertToScreenCoordinates` doesn't perform actual coordinate conversion in test environments.
-
-Key tests:
-- `test_roundedRectPath_coordinatesDriftOnRepeatedReads()` - Canonical example from README
-- `test_cgPathWithQuadCurve_coordinatesDriftOnRepeatedReads()` - CGPath with quadCurve affected
-- `test_cgPathWithLines_coordinatesDriftOnRepeatedReads()` - CGPath with lines affected
-- `test_rectPath_coordinatesStableOnRepeatedReads()` - rect is unaffected
-- `test_ovalPath_coordinatesStableOnRepeatedReads()` - ovalIn is unaffected
-- `test_arcCenterPath_coordinatesStableOnRepeatedReads()` - arcCenter is unaffected
-- `test_detachedView_noCoordinateDrift()` - Window hierarchy requirement
-- `test_workaround_copyPath_coordinatesStable()` - Confirms the workaround works
