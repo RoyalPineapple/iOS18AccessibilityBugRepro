@@ -2,10 +2,10 @@ import XCTest
 import UIKit
 
 /// Demonstrates the iOS 18+ bug where UIAccessibility.convertToScreenCoordinates
-/// mutates its input UIBezierPath, causing output coordinates to drift on repeated reads.
+/// returns incorrect coordinates when called repeatedly with the same CGPath.
 ///
 /// Expected: Output path coordinates remain stable across multiple reads
-/// Actual (iOS 18+): Output coordinates accumulate, drifting further each time
+/// Actual (iOS 18+): Output coordinates drift, accumulating the screen offset multiple times
 final class PathMutationDemonstration: XCTestCase {
     var window: UIWindow!
     var testView: UIView!
@@ -27,32 +27,14 @@ final class PathMutationDemonstration: XCTestCase {
 
     // MARK: - Core Bug Demonstration
     
-    func test_readmeExample_coordinatesDriftOnRepeatedReads() {
+    func test_coordinatesDriftOnRepeatedReads() {
         let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
         view.relativePath = path
         testView.addSubview(view)
         window.layoutIfNeeded()
 
-        // 3. Access the path multiple times
-        _ = view.accessibilityPath  // Returns path at (100, 200) ✓
-        _ = view.accessibilityPath  // Returns path at (200, 400) ✗ Wrong!
-        _ = view.accessibilityPath  // Returns path at (300, 600) ✗ Accumulating!
-
-        // 4. The stored path has been mutated
-        XCTAssertEqual(view.relativePath?.bounds.origin, .zero, "should return correct coordinates (FAILS on iOS 18+)")
-    }
-
-    // MARK: - Path Type Verification
-
-    func test_roundedRectPath_coordinatesDriftOnRepeatedReads() {
-        // CGPath with rounded rect - affected by bug
-        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
-        let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
-        view.relativePath = path
-        testView.addSubview(view)
-        window.layoutIfNeeded()
-
+        let initialBounds = path.bounds
         let expectedX = view.convert(view.bounds, to: nil).origin.x + path.bounds.origin.x
 
         // Expected: All reads return the same coordinates
@@ -160,7 +142,6 @@ final class PathMutationDemonstration: XCTestCase {
         XCTAssertEqual(view.accessibilityPath!.bounds.origin.x, expectedX, "2nd read")
         XCTAssertEqual(view.accessibilityPath!.bounds.origin.x, expectedX, "3rd read")
     }
-
 
     // MARK: - Other Trigger Conditions
 
