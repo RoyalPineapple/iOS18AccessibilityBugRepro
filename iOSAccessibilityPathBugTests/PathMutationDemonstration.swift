@@ -585,11 +585,13 @@ final class PathMutationDemonstration: XCTestCase {
         """)
 
         // Try triggering property observer by reassigning same object
-        view.relativePath = view.relativePath
+        let samePathReference = view.relativePath
+        view.relativePath = samePathReference
         let afterReassignSame = view.accessibilityPath!.bounds.origin.x
         XCTFail("""
         === AFTER REASSIGNING SAME OBJECT ===
         Returned X: \(afterReassignSame)
+        Same reference reassigned: \(samePathReference === view.relativePath)
         Does reassigning same reference reset counter?
         """)
     }
