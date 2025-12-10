@@ -2,7 +2,7 @@
 
 ## Summary
 
-In iOS 18+, `UIAccessibility.convertToScreenCoordinates(_:in:)` unexpectedly mutates its input `UIBezierPath` in addition to returning a new path. The input path shouldn't be modified, but it gets transformed in-place, causing coordinate drift when the same path object is reused.
+In iOS 18+, `UIAccessibility.convertToScreenCoordinates(_:in:)` uses a global accumulation counter that causes returned path coordinates to drift on repeated calls. The function creates new output paths (as documented) but calculates coordinates using internal state that accumulates N× the screen offset without resetting between calls.
 
 **Observed in:** iOS 18.0 through iOS 26.1
 **Last working version:** iOS 17.5
@@ -20,7 +20,7 @@ override var accessibilityPath: UIBezierPath? {
 }
 ```
 
-Starting in iOS 18, this API mutates the input path in addition to returning a converted copy.
+Starting in iOS 18, this API uses corrupted internal state when calculating the returned path's coordinates, causing accumulation errors on repeated calls.
 
 ## Minimal Reproduction
 
@@ -43,16 +43,19 @@ window.addSubview(view)
 window.makeKeyAndVisible()
 
 // 3. Access the path multiple times
-_ = view.accessibilityPath  // Returns path at (100, 200) ✓
-_ = view.accessibilityPath  // Returns path at (200, 400) ✗ Wrong!
-_ = view.accessibilityPath  // Returns path at (300, 600) ✗ Accumulating!
+let first = view.accessibilityPath   // Returns path at (100, 200) ✓
+let second = view.accessibilityPath  // Returns path at (200, 400) ✗ Wrong!
+let third = view.accessibilityPath   // Returns path at (300, 600) ✗ Accumulating!
 
-// 4. The stored path has been mutated
-print(path.bounds.origin)  // (300, 600) - was (0, 0)!
+// 4. The input path remains unchanged
+print(path.bounds.origin)  // Still (0, 0) - input never modified
+print(first.bounds.origin) // (100, 200) - correct
+print(second.bounds.origin) // (200, 400) - 2× screen offset
+print(third.bounds.origin)  // (300, 600) - 3× screen offset
 ```
 
-**Expected:** Returns a new path with screen coordinates; input path unchanged.
-**Actual:** Returns a new path but also mutates the input path, causing coordinates to accumulate on each access.
+**Expected:** Returns a new path with screen coordinates (100, 200) on each call; input path unchanged.
+**Actual:** Returns new paths with cumulative coordinate errors: 1st call correct, 2nd call has 2× offset, 3rd call has 3× offset. Input path remains unchanged (the bug is in output generation, not input mutation).
 
 ### Visual Comparison
 
@@ -83,26 +86,36 @@ Screenshots generated with [AccessibilitySnapshot](https://github.com/cashapp/Ac
 
 ## Technical Details
 
-**Mutation pattern:** Each access adds the view's screen offset to the input path:
+**Root cause:** The function uses a **global accumulation counter** that increments on every call and applies N× the screen offset to the returned path coordinates. The input path is never modified - the bug is entirely in how the function calculates the output path's coordinates.
+
+**Accumulation pattern:**
 ```
-coordinates_after_N_accesses = original + (N × screenOffset)
+returned_coordinates = original + (N × screenOffset)
 
 where:
-  N = number of times accessibilityPath has been accessed (1, 2, 3, ...)
+  N = global call counter (1, 2, 3, ...) shared across ALL views/paths
   screenOffset = view.convert(CGPoint.zero, to: nil)
 ```
+
+**Key findings from investigation tests:**
+- ✓ Input path remains unchanged (same object, bounds, and CGPath pointer)
+- ✓ Each call returns a NEW path object (different CGPath pointers)
+- ✓ Counter is GLOBAL, not per-view (multiple views share the same counter)
+- ✓ Creating fresh path/view objects each time doesn't help (counter still accumulates)
+- ✓ Counter resets when path object identity changes (why `path?.copy()` works)
+- ✓ Counter does NOT reset when view moves (only when path changes)
 
 **Trigger conditions** (all required):
 - Most path types (see Visual Comparison section for specifics)
 - View is in a key, visible window
 - Called from within `accessibilityPath` getter
-- Same path object reused across accesses
+- Multiple calls to the function (counter accumulates)
 
-**Unaffected paths:** `UIBezierPath(rect:)`, `UIBezierPath(ovalIn:)`, and `UIBezierPath(arcCenter:...)` avoid the bug. All other tested path types including `roundedRect` and `cgPath` constructions with explicit elements are affected.
+**Unaffected paths:** `UIBezierPath(rect:)`, `UIBezierPath(ovalIn:)`, and `UIBezierPath(arcCenter:...)` avoid the bug (likely use optimized internal representations). All other tested path types including `roundedRect` and `cgPath` constructions with explicit elements are affected.
 
 ## Workaround
 
-Copy the path before conversion:
+Copy the path before conversion to create a new path object, which resets the internal counter:
 
 ```swift
 override var accessibilityPath: UIBezierPath? {
@@ -113,6 +126,8 @@ override var accessibilityPath: UIBezierPath? {
     set { super.accessibilityPath = newValue }
 }
 ```
+
+**Why this works:** The global counter is tied to path object identity. Creating a new path object via `copy()` resets the counter to start from 1, ensuring the first (and only) call with that path object produces correct coordinates.
 
 ## Running the Tests
 
