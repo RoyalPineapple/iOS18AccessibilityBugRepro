@@ -98,7 +98,7 @@ where:
 - Called from within `accessibilityPath` getter
 - Same path object reused across accesses
 
-**Unaffected paths:** `UIBezierPath(rect:)`, `UIBezierPath(ovalIn:)`, and `UIBezierPath(arcCenter:...)` use optimized internal representations that avoid the bug. All other tested path types including `roundedRect` and `cgPath` constructions with explicit elements are affected.
+**Unaffected paths:** `UIBezierPath(rect:)`, `UIBezierPath(ovalIn:)`, and `UIBezierPath(arcCenter:...)` avoid the bug. All other tested path types including `roundedRect` and `cgPath` constructions with explicit elements are affected.
 
 ## Workaround
 
