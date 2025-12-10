@@ -26,10 +26,28 @@ final class PathMutationDemonstration: XCTestCase {
     }
 
     // MARK: - Core Bug Demonstration
+    
+    func test_readmeExample_coordinatesDriftOnRepeatedReads() {
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
+        view.relativePath = path
+        testView.addSubview(view)
+        window.layoutIfNeeded()
+
+        // 3. Access the path multiple times
+        _ = view.accessibilityPath  // Returns path at (100, 200) ✓
+        _ = view.accessibilityPath  // Returns path at (200, 400) ✗ Wrong!
+        _ = view.accessibilityPath  // Returns path at (300, 600) ✗ Accumulating!
+
+        // 4. The stored path has been mutated
+        XCTAssertEqual(view.relativePath?.bounds.origin, .zero, "should return correct coordinates (FAILS on iOS 18+)")
+    }
+
+    // MARK: - Path Type Verification
 
     func test_roundedRectPath_coordinatesDriftOnRepeatedReads() {
-        // Canonical example from README: roundedRect path causes coordinate drift
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // CGPath with rounded rect - affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
         view.relativePath = path
         testView.addSubview(view)
@@ -48,12 +66,10 @@ final class PathMutationDemonstration: XCTestCase {
         let third = view.accessibilityPath!.bounds.origin.x
         XCTAssertEqual(third, expectedX, "3rd read should return same coordinates (FAILS on iOS 18+)")
     }
-
-    // MARK: - Path Type Verification
     
     func test_cgPathWithQuadCurve_coordinatesDriftOnRepeatedReads() {
-        // CGPath with explicit quadCurve elements - affected by bug
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // CGPath with quadCurve elements - affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let cgPath = CGMutablePath()
         cgPath.move(to: .zero)
         cgPath.addQuadCurve(to: CGPoint(x: 60, y: 40), control: CGPoint(x: 15, y: 30))
@@ -75,8 +91,8 @@ final class PathMutationDemonstration: XCTestCase {
     }
 
     func test_cgPathWithLines_coordinatesDriftOnRepeatedReads() {
-        // CGPath with explicit line elements - affected by bug
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // CGPath with line elements - affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let cgPath = CGMutablePath()
         cgPath.move(to: CGPoint(x: 0, y: 40))
         cgPath.addLine(to: CGPoint(x: 20, y: 15))
@@ -100,8 +116,8 @@ final class PathMutationDemonstration: XCTestCase {
     }
 
     func test_rectPath_coordinatesStableOnRepeatedReads() {
-        // rect uses optimized representation - not affected by bug
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // rect is not affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(rect: CGRect(x: 0, y: 0, width: 60, height: 40))
         view.relativePath = path
         testView.addSubview(view)
@@ -115,8 +131,8 @@ final class PathMutationDemonstration: XCTestCase {
     }
 
     func test_ovalPath_coordinatesStableOnRepeatedReads() {
-        // ovalIn uses optimized representation - not affected by bug
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // ovalIn is not affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: 60, height: 40))
         view.relativePath = path
         testView.addSubview(view)
@@ -130,8 +146,8 @@ final class PathMutationDemonstration: XCTestCase {
     }
 
     func test_arcCenterPath_coordinatesStableOnRepeatedReads() {
-        // arcCenter uses optimized representation - not affected by bug
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        // arcCenter is not affected by bug
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(arcCenter: CGPoint(x: 30, y: 20), radius: 20,
                                 startAngle: 0, endAngle: 1.57, clockwise: true)
         view.relativePath = path
@@ -150,7 +166,7 @@ final class PathMutationDemonstration: XCTestCase {
 
     func test_detachedView_noCoordinateDrift() {
         // Bug only occurs when view is in a visible window hierarchy
-        let view = AccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        let view = BuggyPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
         view.relativePath = path
         // Note: view NOT added to window
@@ -168,7 +184,7 @@ final class PathMutationDemonstration: XCTestCase {
 
     func test_workaround_copyPath_coordinatesStable() {
         // Workaround: copying the path prevents mutation and drift
-        let view = FixedAccessibilityPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
+        let view = FixedPathView(frame: CGRect(x: 100, y: 200, width: 60, height: 40))
         let path = UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: 60, height: 40), cornerRadius: 10)
         view.relativePath = path
         testView.addSubview(view)
@@ -186,7 +202,7 @@ final class PathMutationDemonstration: XCTestCase {
 // MARK: - Test Helpers
 
 /// View that implements accessibilityPath using the documented pattern
-private class AccessibilityPathView: UIView {
+private class BuggyPathView: UIView {
     var relativePath: UIBezierPath?
 
     override var accessibilityPath: UIBezierPath? {
@@ -194,12 +210,12 @@ private class AccessibilityPathView: UIView {
             guard let path = relativePath else { return nil }
             return UIAccessibility.convertToScreenCoordinates(path, in: self)
         }
-        set { super.accessibilityPath = newValue }
+        set { fatalError("use relativePath instead") }
     }
 }
 
 /// View that implements the workaround by copying the path
-private class FixedAccessibilityPathView: UIView {
+private class FixedPathView: UIView {
     var relativePath: UIBezierPath?
 
     override var accessibilityPath: UIBezierPath? {
@@ -207,6 +223,6 @@ private class FixedAccessibilityPathView: UIView {
             guard let path = relativePath?.copy() as? UIBezierPath else { return nil }
             return UIAccessibility.convertToScreenCoordinates(path, in: self)
         }
-        set { super.accessibilityPath = newValue }
+        set { fatalError("use relativePath instead") }
     }
 }
