@@ -34,7 +34,6 @@ final class CoordinateDriftDemonstration: XCTestCase {
         testView.addSubview(view)
         window.layoutIfNeeded()
 
-        let initialBounds = path.bounds
         let expectedX = view.convert(view.bounds, to: nil).origin.x + path.bounds.origin.x
 
         // Expected: All reads return the same coordinates

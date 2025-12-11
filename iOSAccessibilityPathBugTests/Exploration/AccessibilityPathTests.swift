@@ -14,7 +14,7 @@ private class BuggyAccessibilityPathView: UIView {
     }
 }
 
-final class AccessibilityPathMutationTests: XCTestCase {
+final class AccessibilityPathTests: XCTestCase {
     var window: UIWindow!
     var testView: UIView!
 
