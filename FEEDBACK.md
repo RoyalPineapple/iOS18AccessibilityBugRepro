@@ -1,4 +1,4 @@
-# Apple Feedback: UIAccessibility.convertToScreenCoordinates Mutates Input Path
+# Apple Feedback: UIAccessibility.convertToScreenCoordinates Returns Incorrect Coordinates on Repeated Calls
 
 **Feedback Type:** Bug Report
 **Area:** UIAccessibility API
