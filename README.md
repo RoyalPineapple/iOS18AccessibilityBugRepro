@@ -84,52 +84,25 @@ Screenshots generated with [AccessibilitySnapshot](https://github.com/cashapp/Ac
 | iOS 18.0+ | Path mutation occurs |
 | iOS 26.1 | Still present |
 
-## Technical Details
+## Bug Behavior
 
-**Observed behavior:** When called repeatedly with the same CGPath, `convertToScreenCoordinates()` returns new paths with coordinates that accumulate the screen offset multiple times. The input path is never modified - the bug affects only the returned path's coordinates.
+When called repeatedly with the same CGPath, `convertToScreenCoordinates()` returns incorrect coordinates that accumulate:
 
-**Accumulation pattern:**
 ```
 returned_coordinates = original + (N × screenOffset)
-
-where:
-  N = number of times this specific CGPath has been converted (1, 2, 3, ...)
-  screenOffset = view.convert(CGPoint.zero, to: nil)
+where N = 1, 2, 3... (number of calls with this CGPath)
 ```
 
-**Confirmed through tests:**
+Example:
+- 1st call: correct coordinates (100, 200)
+- 2nd call: 2× offset (200, 400)
+- 3rd call: 3× offset (300, 600)
 
-*Input path behavior:*
-- ✓ Input path object never changes (same reference, bounds, and CGPath pointer across all calls)
-- ✓ Each call returns a NEW output path object (confirmed via distinct CGPath pointer addresses)
-
-*Accumulation is per-CGPath:*
-- ✓ Each unique CGPath accumulates independently
-- ✓ Multiple views with different CGPaths show independent accumulation
-- ✓ Creating fresh view objects doesn't prevent accumulation (same CGPath continues accumulating)
-
-*Coordinate drift resets (returns to correct values) when:*
-- ✓ New path object assigned (`path?.copy()` or new `UIBezierPath(...)`)
-- ✓ CGPath is modified (`apply()`, `addLine()`, `close()`, etc.)
-
-*Coordinate drift does NOT reset (continues accumulating) when:*
-- ✓ Same path reference is reassigned without creating new object
-- ✓ View moves to new position or changes hierarchy
-
-*Path type behavior:*
-- ✓ `UIBezierPath(rect:)`, `UIBezierPath(ovalIn:)`, and `UIBezierPath(arcCenter:...)` always return correct coordinates (no accumulation)
-- ✓ After using rect/oval, switching to roundedRect starts accumulation fresh (no interaction between path types)
-- ✓ All other tested types accumulate: `roundedRect`, CGPath with explicit elements (lines, curves)
-
-**Trigger conditions** (all required):
-- Affected path type (roundedRect, CGPath with explicit elements)
-- View is in a key, visible window
-- Multiple calls to function with same CGPath
-- Called from within `accessibilityPath` getter
+The bug affects `UIBezierPath(roundedRect:)` and CGPath with explicit elements (lines, curves). Simple paths like `rect`, `ovalIn`, and `arcCenter` work correctly.
 
 ## Workaround
 
-Copy the path before conversion to create a new path object:
+Copy the path before conversion:
 
 ```swift
 override var accessibilityPath: UIBezierPath? {
@@ -140,8 +113,6 @@ override var accessibilityPath: UIBezierPath? {
     set { super.accessibilityPath = newValue }
 }
 ```
-
-**Why this works:** Tests confirm that when a new path object is created (via `copy()` or modification), the next conversion returns correct coordinates instead of accumulated values. Since each `accessibilityPath` call creates a fresh copy, each conversion is the first call for that CGPath object and returns correct coordinates.
 
 ## Running the Tests
 
