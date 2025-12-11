@@ -119,7 +119,7 @@ override var accessibilityPath: UIBezierPath? {
 
 ## Running the Tests
 
-The test suite in `iOSAccessibilityPathBugTests/PathMutationDemonstration.swift` demonstrates the bug patterns and verifies the workaround:
+The test suite in `iOSAccessibilityPathBugTests/CoordinateDriftDemonstration.swift` demonstrates the bug patterns and verifies the workaround:
 
 ```bash
 xcodebuild test -project iOSAccessibilityPathBug.xcodeproj \

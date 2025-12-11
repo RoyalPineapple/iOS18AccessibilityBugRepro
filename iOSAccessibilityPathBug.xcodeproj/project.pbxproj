@@ -37,13 +37,6 @@
 			);
 			target = ACB95FDE2EE88009004FD0CE /* AccessibilityBugTestHost */;
 		};
-		ACB961722EE9A016004FD0CE /* Exceptions for "iOSAccessibilityPathBugTests" folder in "BugExplorationTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				PathMutationDemonstration.swift,
-			);
-			target = ACB961682EE9A016004FD0CE /* BugExplorationTests */;
-		};
 		ACB9617F2EE9A02F004FD0CE /* Exceptions for "iOSAccessibilityPathBugTests" folder in "BugDemonstrationTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -78,7 +71,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				ACB9617F2EE9A02F004FD0CE /* Exceptions for "iOSAccessibilityPathBugTests" folder in "BugDemonstrationTests" target */,
-				ACB961722EE9A016004FD0CE /* Exceptions for "iOSAccessibilityPathBugTests" folder in "BugExplorationTests" target */,
 			);
 			path = iOSAccessibilityPathBugTests;
 			sourceTree = "<group>";

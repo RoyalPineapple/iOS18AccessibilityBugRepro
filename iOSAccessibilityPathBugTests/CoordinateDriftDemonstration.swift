@@ -6,7 +6,7 @@ import UIKit
 ///
 /// Expected: Output path coordinates remain stable across multiple reads
 /// Actual (iOS 18+): Output coordinates drift, accumulating the screen offset multiple times
-final class PathMutationDemonstration: XCTestCase {
+final class CoordinateDriftDemonstration: XCTestCase {
     var window: UIWindow!
     var testView: UIView!
 
