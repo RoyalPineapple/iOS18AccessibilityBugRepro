@@ -63,7 +63,8 @@ print(third.bounds.origin)           // (300, 600) - wrong!
 ## Actual Results
 
 - Each call to `convertToScreenCoordinates(_:in:)` returns a new path (as documented) but with incorrect coordinates
-- Coordinates accumulate with each call: 1st=(100,200) ✓, 2nd=(200,400) ✗, 3rd=(300,600) ✗
+- Coordinates accumulate following the pattern: `returned = original + (N × screenOffset)` where N = 1, 2, 3... and screenOffset is the view's screen position
+- Example: 1st=(100,200) ✓, 2nd=(200,400) ✗, 3rd=(300,600) ✗
 - Multiple accesses to `accessibilityPath` return increasingly incorrect coordinates
 - VoiceOver focus outlines drift away from their views or appear off-screen
 - Affects `roundedRect` and CGPath with explicit elements; `rect` and `oval` work correctly

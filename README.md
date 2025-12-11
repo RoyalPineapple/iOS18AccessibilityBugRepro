@@ -90,10 +90,13 @@ When called repeatedly with the same CGPath, `convertToScreenCoordinates()` retu
 
 ```
 returned_coordinates = original + (N × screenOffset)
-where N = 1, 2, 3... (number of calls with this CGPath)
+
+where:
+  N = 1, 2, 3... (number of calls with this CGPath)
+  screenOffset = view's position in screen coordinates
 ```
 
-Example:
+Example with view at screen position (100, 200):
 - 1st call: correct coordinates (100, 200)
 - 2nd call: 2× offset (200, 400)
 - 3rd call: 3× offset (300, 600)
