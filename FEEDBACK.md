@@ -12,19 +12,23 @@
 
 The `UIAccessibility.convertToScreenCoordinates(_:in:)` API is documented to "return a new path object" with coordinates converted to screen space. Starting in iOS 18.0, when called repeatedly with the same CGPath object, returned coordinates accumulate the screen offset multiple times: the 1st call returns correct coordinates, the 2nd call returns 2× the screen offset, the 3rd call returns 3× the screen offset, and so on. The input path parameter remains unchanged - the bug affects only the returned path's coordinates.
 
-This breaks the standard implementation pattern for `accessibilityPath` where a single relative path is converted on each access. When a view's `accessibilityPath` getter is accessed multiple times (as happens during normal VoiceOver usage), the returned coordinates drift further from the correct position with each access. This manifests visually as VoiceOver focus outlines that are incorrectly positioned or completely off-screen.
+This breaks the implementation pattern for `accessibilityPath` where a single relative path is converted on each access. When a view's `accessibilityPath` getter is accessed multiple times (as happens during normal VoiceOver usage), the returned coordinates drift further from the correct position with each access. This manifests visually as VoiceOver focus outlines that are incorrectly positioned or completely off-screen.
 
 ## Steps to Reproduce
 
-1. Create a UIView subclass that implements `accessibilityPath` using the documented pattern:
+1. Create a UIView subclass that implements `accessibilityPath` using the following pattern:
 
 ```swift
 class AccessibilityPathView: UIView {
+
     var relativePath: UIBezierPath?
 
     override var accessibilityPath: UIBezierPath? {
-        guard let path = relativePath else { return nil }
-        return UIAccessibility.convertToScreenCoordinates(path, in: self)
+        get {
+            guard let path = relativePath else { return nil }
+            return UIAccessibility.convertToScreenCoordinates(path, in: self)
+        }
+        set { fatalError("use relativePath instead") }
     }
 }
 ```
@@ -56,7 +60,6 @@ print(third.bounds.origin)           // (300, 600) - wrong!
 ## Expected Results
 
 - Each call to `convertToScreenCoordinates(_:in:)` should return a new path with correct screen coordinates (100, 200)
-- The input path parameter should remain unchanged at (0, 0)
 - Multiple accesses to `accessibilityPath` should return consistent, correct coordinates
 - VoiceOver focus outlines should align correctly with their views
 
@@ -67,7 +70,6 @@ print(third.bounds.origin)           // (300, 600) - wrong!
 - Example: 1st=(100,200) ✓, 2nd=(200,400) ✗, 3rd=(300,600) ✗
 - Multiple accesses to `accessibilityPath` return increasingly incorrect coordinates
 - VoiceOver focus outlines drift away from their views or appear off-screen
-- Affects `roundedRect` and CGPath with explicit elements; `rect` and `oval` work correctly
 
 ## Configuration
 
@@ -75,7 +77,7 @@ print(third.bounds.origin)           // (300, 600) - wrong!
 - iOS 18.0 through iOS 26.1 (latest tested)
 - Reproduced on both iOS Simulator and physical devices
 
-**Last Working Version:**
+**Last Tested Working Version:**
 - iOS 17.5
 
 **Affected Path Types:**
@@ -104,8 +106,7 @@ override var accessibilityPath: UIBezierPath? {
 
 ## Sample Project
 
-A complete sample project demonstrating this issue is attached or available at:
-https://github.com/RoyalPineapple/iOSAccessibilityPathBug
+A complete sample project demonstrating this issue is attached 
 
 The project includes:
 - Unit tests documenting the bug across different path types
@@ -120,6 +121,3 @@ xcodebuild test -project iOSAccessibilityPathBug.xcodeproj \
   -only-testing:BugDemonstrationTests
 ```
 
-## Additional Notes
-
-This regression has significant impact on apps using custom accessibility paths, as VoiceOver users will encounter incorrectly positioned focus indicators that do not align with the actual interactive elements. The issue occurs in normal VoiceOver usage as the system queries `accessibilityPath` multiple times during navigation.
