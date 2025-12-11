@@ -116,8 +116,7 @@ The project includes:
 To run the demonstration tests:
 ```bash
 xcodebuild test -project iOSAccessibilityPathBug.xcodeproj \
-  -scheme AccessibilityBugTestHost \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
-  -only-testing:BugDemonstrationTests
+  -scheme BugDemonstrationTests \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
 ```
 

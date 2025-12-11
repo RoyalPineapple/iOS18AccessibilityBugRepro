@@ -82,7 +82,7 @@ Screenshots generated with [AccessibilitySnapshot](https://github.com/cashapp/Ac
 |-------------|--------|
 | iOS 17.5 | Works as documented |
 | iOS 18.0+ | Coordinate drift bug present |
-| iOS 26.1 | Still present |
+| iOS 26.1 | Still present (latest tested) |
 
 ## Bug Behavior
 
